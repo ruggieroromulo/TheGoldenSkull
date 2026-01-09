@@ -1,6 +1,6 @@
 import pgzrun
 from pgzero.actor import Actor
-
+ 
 # --- CONFIGURAÇÕES (CONSTANTES) ---
 WIDTH = 800
 HEIGHT = 600
@@ -60,16 +60,15 @@ class Player(GameActor):
 
 # --- INICIALIZAÇÃO ---
 
-# Cria o herói no meio da tela (x=400, y=100)
-# IMPORTANTE: Certifique-se que existe uma imagem com esse nome na pasta images
-hero = Player("player_idle1", (400, 100))
+#spawna o player no meio da tela 
+hero = Player("player_idle_word01", (400, 100))
 
 # --- LOOP PRINCIPAL DO PGZERO ---
 
 def draw():
-    screen.fill((135, 206, 235)) # Cor do céu (Azul Claro)
+    screen.fill((135, 206, 235)) #céu
     
-    # Desenha um chão marrom só pra gente ter referência visual
+    # Desenha o chaol marrom
     screen.draw.filled_rect(Rect(0, 530, 800, 70), (100, 50, 0))
     
     hero.draw()
