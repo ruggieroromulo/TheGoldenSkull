@@ -2,22 +2,19 @@ import pgzrun
 from pgzero.actor import Actor
  
 # --- CONFIGURAÇÕES (CONSTANTES) ---
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 1200
+HEIGHT = 800
 TITLE = "The Golden Skull"
 
 # Configurações de Física
-GRAVITY = 1
-JUMP_POWER = -18
+GRAVITY = 0.7
+JUMP_POWER = -14
+HOLD_JUMP_POWER = -20
 SPEED = 5
 
 # --- CLASSES ---
 
 class GameActor(Actor):
-    """
-    Classe Pai: Qualquer coisa no jogo que tenha vida ou se mova
-    vai herdar daqui. Isso mostra organização para os avaliadores.
-    """
     def __init__(self, image_name, pos):
         super().__init__(image_name, pos)
         self.velocity_y = 0
@@ -34,15 +31,16 @@ class Player(GameActor):
 
     def move(self):
         # Movimento Horizontal
-        if keyboard.left:
+        if keyboard.A:
             self.x -= SPEED
-        elif keyboard.right:
+        elif keyboard.D:
             self.x += SPEED
 
-        # Pulo (Só pula se estiver no chão)
-        if keyboard.space and self.on_ground:
-            self.velocity_y = JUMP_POWER
-            self.on_ground = False # Saiu do chão
+
+        # PULO INICIAL (Sempre força máxima)
+        if keyboard.W and self.on_ground:
+            self.velocity_y = -15  # Força total para ir lá no alto
+            self.on_ground = False
 
     def apply_gravity(self):
         self.velocity_y += GRAVITY
@@ -57,6 +55,13 @@ class Player(GameActor):
             self.on_ground = True
         else:
             self.on_ground = False
+
+def on_key_up(key):
+    # Se soltou ESPAÇO e o herói está subindo (velocidade negativa)
+    if key == keys.W and hero.velocity_y < 0:
+        hero.velocity_y = hero.velocity_y * 0.3 
+
+
 
 # --- INICIALIZAÇÃO ---
 
