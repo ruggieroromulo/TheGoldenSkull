@@ -23,9 +23,11 @@ class GameActor(Actor):
         self.velocity_y = 0
         self.on_ground = False
 
-class Block(GameActor): 
-    def __init__(self, pos):
-        super().__init__("block", pos)
+class Block(GameActor):
+    # Agora aceita um segundo argumento opcional 'img_name'
+    # Se não passar nada, ele usa "block" por padrão
+    def __init__(self, pos, img_name="block"):
+        super().__init__(img_name, pos)
 
 class Player(GameActor):
     def __init__(self, pos):
@@ -77,6 +79,23 @@ class Player(GameActor):
             self.is_attacking = True
             self.frame = 0 # Reinicia a animação
 
+    def check_boundaries(self):
+        # 1. Parede Esquerda
+        # Se o lado esquerdo do boneco for menor que 0
+        if self.left < 0:
+            self.left = 0 # Trava ele no 0
+            
+        # 2. Parede Direita
+        # Se o lado direito do boneco passar da largura da tela
+        if self.right > WIDTH:
+            self.right = WIDTH # Trava ele no limite
+            
+        # 3. Buraco (Morte) - Mantemos o que já existia
+        if self.y > HEIGHT + 100:
+            print("Caiu no buraco!")
+            self.pos = (100, 500) # Reset
+            self.velocity_y = 0
+
 
     def handle_input(self):
         self.is_moving = False
@@ -124,10 +143,6 @@ class Player(GameActor):
         # Se passou por todos os blocos e não tocou em nada, está voando
         self.on_ground = False
         
-        # Morte se cair no buraco (reset simples)
-        if self.y > HEIGHT + 100:
-            self.pos = (100, 500) 
-            self.velocity_y = 0
 
     def animate(self):
         self.frame += self.anim_speed
@@ -191,16 +206,15 @@ class Player(GameActor):
 def create_level1():
     platforms.clear()
     
-    # 1. Chão principal (embaixo)
-    # O 'range' vai de 0 até a largura da tela, pulando de 32 em 32 pixels (tamanho do bloco)
+    # 1. Chão principal (Continua usando o bloco sólido padrão)
     for x in range(0, WIDTH, 32): 
-        # Colocamos na altura 750 para ficar no pé da tela
-        plat = Block((x, 750))
+        plat = Block((x, 790), "block") # Passamos "block" explicitamente
         platforms.append(plat)
         
-    # 2. Plataforma flutuante (para testar o pulo)
-    for x in range(400, 600, 32):
-        plat = Block((x, 600))
+    # 2. Plataforma flutuante (Agora usa a imagem nova!)
+    for x in range(300, 600, 38):
+        # AQUI ESTÁ A MUDANÇA: passamos "platform"
+        plat = Block((x, 500), "platform") 
         platforms.append(plat)
 
 def on_key_up(key):
@@ -217,6 +231,7 @@ def on_mouse_down(pos, button):
 
 create_level1() # Cria o chão
 hero = Player((100, 600)) # Começa em cima do chão
+
 
 # --- LOOP PRINCIPAL ---
 
