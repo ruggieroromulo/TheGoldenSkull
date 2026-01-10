@@ -1,5 +1,6 @@
 import pgzrun
 from pgzero.actor import Actor
+import random
 from pygame import Rect
 
 # --- CONFIGURAÇÕES (CONSTANTES) ---
@@ -14,6 +15,8 @@ SPEED = 5
 
 # --- VARIÁVEIS GLOBAIS ---
 platforms = [] # Lista de plataformas precisa ser uma variavel global
+enemies = []
+
 
 # --- CLASSES ---
 
@@ -24,8 +27,7 @@ class GameActor(Actor):
         self.on_ground = False
 
 class Block(GameActor):
-    # Agora aceita um segundo argumento opcional 'img_name'
-    # Se não passar nada, ele usa "block" por padrão
+    # Se não passar nada, "block" é usado por padrão
     def __init__(self, pos, img_name="block"):
         super().__init__(img_name, pos)
 
@@ -35,7 +37,7 @@ class Player(GameActor):
         
         # --- 1. LISTAS DE ANIMAÇÃO ---
         
-        # IDLE (Parado)
+        # IDLE 
         self.anim_idle_r = [
             "player_idle_word1", "player_idle_word2", "player_idle_word3", "player_idle_word4", "player_idle_word5"
         ]
@@ -43,7 +45,7 @@ class Player(GameActor):
             "player_idle_word_left1", "player_idle_word_left2", "player_idle_word_left3", "player_idle_word_left4", "player_idle_word_left5"
         ]
         
-        # RUN (Correndo)
+        # RUN 
         self.anim_run_r = [
             "player_run_sword1", "player_run_sword2", "player_run_sword3", 
             "player_run_sword4", "player_run_sword5", "player_run_sword6"
@@ -53,27 +55,45 @@ class Player(GameActor):
             "player_run_sword_left4", "player_run_sword_left5", "player_run_sword_left6"
         ]
         
-        # JUMP (Pulo)
+        # JUMP 
         self.anim_jump_r = ["player_jump_sword1", "player_jump_sword2", "player_jump_sword3"]
         self.anim_jump_l = ["player_jump_sword_left1", "player_jump_sword_left2", "player_jump_sword_left3"]
 
-        # ATTACK (Ataque)
+        # ATTACK 
         self.anim_attack_r = ["player_attack1", "player_attack2", "player_attack3"]
         self.anim_attack_l = ["player_attack_left1", "player_attack_left2", "player_attack_left3"]
 
         # --- VARIÁVEIS DE CONTROLE ---
         self.frame = 0
-        self.anim_speed = 0.17
+        self.anim_speed = 0.2
         self.facing_right = True
         self.is_moving = False
         self.is_attacking = False
 
-    def update(self):
-        self.handle_input()
-        self.apply_gravity()
-        self.check_boundaries()
-        self.animate()
+        # --- SISTEMA DE VIDA ---
+        self.hp = 3.0 
+        self.invulnerable_timer = 0 
+        self.knockback = 0 # Empurrão quando toma dano
 
+      def update(self):
+        # Se estiver tomando empurrão (knockback), não controla o boneco
+        if self.knockback > 0:
+            self.x += self.knockback
+            # Diminui a força do empurrão gradualmente
+            if self.knockback > 0: self.knockback -= 1
+            elif self.knockback < 0: self.knockback += 1
+        else:
+            self.handle_input()
+            
+        self.apply_gravity()
+        self.animate()
+        
+        # Conta o tempo de invencibilidade
+        if self.invulnerable_timer > 0:
+            self.invulnerable_timer -= 1
+            
+        # Verifica colisões
+        self.check_damage() 
     def attack(self):
         # Só ataca se não estiver atacando
         if not self.is_attacking:
@@ -203,11 +223,115 @@ class Player(GameActor):
             self.image = current_list[idx]
 
 
+class Enemy(GameActor):
+    def __init__(self, pos):
+        super().__init__("enemy1_run1", pos)
+        
+        # --- LISTAS DE ANIMAÇÃO ---
+        self.anim_run_r = [
+            "enemy1_run1", "enemy1_run2", "enemy1_run3", 
+            "enemy1_run4", "enemy1_run5", "enemy1_run6"
+        ]
+        self.anim_run_l = [
+            "enemy1_run_left1", "enemy1_run_left2", "enemy1_run_left3", 
+            "enemy1_run_left4", "enemy1_run_left5", "enemy1_run_left6"
+        ]
+        
+        # --- CONTROLE ---
+        self.frame = 0
+        self.anim_speed = 0.15
+        self.speed = 2 
+        self.current_speed = 2 
+        self.direction = 1 
+        self.walk_count = 0 
+        self.max_walk_distance = 150 
+        self.state = "patrol"
+        self.hp = 2 
+
+        # --- PULO ---
+        self.velocity_y = 0
+        self.on_ground = False
+        self.reaction_timer = 0 
+
+    def update(self):
+        self.apply_gravity()
+        
+        if self.state == "patrol":
+            self.patrol()
+            self.check_player_jump()
+            
+        self.animate()
+
+    def apply_gravity(self):
+        self.velocity_y += GRAVITY
+        self.y += self.velocity_y
+        self.on_ground = False 
+
+        for plat in platforms:
+            if self.colliderect(plat) and self.velocity_y > 0 and self.bottom < plat.bottom:
+                self.bottom = plat.top
+                self.velocity_y = 0
+                self.on_ground = True
+
+    def patrol(self):
+        # Só atualiza posição e contador se a velocidade for maior que 0
+        if self.current_speed > 0:
+            self.x += self.current_speed * self.direction
+            self.walk_count += self.current_speed
+
+            if self.walk_count > self.max_walk_distance:
+                self.direction *= -1
+                self.walk_count = -150
+
+    def check_player_jump(self):
+        distance_x = abs(hero.x - self.x)
+
+        # GATILHO (Sem Random)
+        if hero.velocity_y < 0 and distance_x < 200 and self.on_ground and self.reaction_timer == 0:
+            
+            # 1. TEMPO FIXO: 30 frames = 0.5 segundos exatos
+            self.reaction_timer = 12
+            
+            # 2. PARA O INIMIGO
+            self.current_speed = 0 
+
+        # EXECUÇÃO
+        if self.reaction_timer > 0:
+            self.reaction_timer -= 1
+            
+            # Quando chega no zero, PULA e volta a andar
+            if self.reaction_timer == 0:
+                self.velocity_y = -12
+                self.on_ground = False
+                self.current_speed = 2 # Devolve a velocidade
+
+    def animate(self):
+        # TRUQUE DO "IDLE FALSO"
+        # Se a velocidade for 0 (está se preparando pra pular), não anima!
+        if self.current_speed == 0:
+            self.frame = 0 # Trava no primeiro quadro (pés no chão)
+        else:
+            # Se está andando, anima normal
+            self.frame += self.anim_speed
+        
+        # Seleção de lista
+        if self.direction > 0: 
+            current_list = self.anim_run_r
+        else: 
+            current_list = self.anim_run_l
+
+        # Loop
+        if self.frame >= len(current_list):
+            self.frame = 0
+            
+        self.image = current_list[int(self.frame)]
+
 
 # --- FUNÇÕES GLOBAIS ---
 
 def create_level1():
     platforms.clear()
+    enemies.clear()
     
     # 1. Chão principal (Continua usando o bloco sólido padrão)
     for x in range(0, WIDTH, 32): 
@@ -241,6 +365,9 @@ def create_level1():
     for x in range(950, 1150, 33):
         plat = Block((x, 200), "platform") 
         platforms.append(plat)
+    
+    bug = Enemy((250, 500))
+    enemies.append(bug)
 
 
 def on_key_up(key):
@@ -264,13 +391,17 @@ hero = Player((100, 600)) # Começa em cima do chão
 def draw():
     screen.fill((135, 206, 235))
     
-    # Desenha todas as plataformas
     for plat in platforms:
         plat.draw()
+        
+    for enemy in enemies:
+        enemy.draw() # Desenha os inimigos
         
     hero.draw()
 
 def update():
     hero.update()
-
+    # Atualiza todos os inimigos
+    for enemy in enemies:
+        enemy.update()
 pgzrun.go()
