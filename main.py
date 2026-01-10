@@ -71,6 +71,7 @@ class Player(GameActor):
     def update(self):
         self.handle_input()
         self.apply_gravity()
+        self.check_boundaries()
         self.animate()
 
     def attack(self):
@@ -82,13 +83,15 @@ class Player(GameActor):
     def check_boundaries(self):
         # 1. Parede Esquerda
         # Se o lado esquerdo do boneco for menor que 0
-        if self.left < 0:
-            self.left = 0 # Trava ele no 0
+        offset = -23
+
+        if self.left < offset:
+            self.left = offset # Trava ele no 0
             
         # 2. Parede Direita
         # Se o lado direito do boneco passar da largura da tela
-        if self.right > WIDTH:
-            self.right = WIDTH # Trava ele no limite
+        if self.right > WIDTH -offset:
+            self.right = WIDTH -offset # Trava ele no limite
             
         # 3. Buraco (Morte) - Mantemos o que já existia
         if self.y > HEIGHT + 100:
@@ -211,11 +214,34 @@ def create_level1():
         plat = Block((x, 790), "block") # Passamos "block" explicitamente
         platforms.append(plat)
         
-    # 2. Plataforma flutuante (Agora usa a imagem nova!)
-    for x in range(300, 600, 38):
-        # AQUI ESTÁ A MUDANÇA: passamos "platform"
-        plat = Block((x, 500), "platform") 
+    for x in range(600, 1100, 33):
+        plat = Block((x, 630), "platform") 
         platforms.append(plat)
+
+    for x in range(50, 500, 33):
+        plat = Block((x, 530), "platform") 
+        platforms.append(plat)
+
+    for x in range(70, 100, 33):
+        plat = Block((x, 400), "platform") 
+        platforms.append(plat)
+
+    for x in range(50, 500, 33):
+        plat = Block((x, 270), "platform") 
+        platforms.append(plat)
+
+    for x in range(650, 670, 20):
+        plat = Block((x, 290), "platform") 
+        platforms.append(plat)
+
+    for x in range(810, 830, 20):
+        plat = Block((x, 240), "platform") 
+        platforms.append(plat)
+
+    for x in range(950, 1150, 33):
+        plat = Block((x, 200), "platform") 
+        platforms.append(plat)
+
 
 def on_key_up(key):
     # Pulo variável (corta o pulo se soltar o botão)
