@@ -14,8 +14,10 @@ JUMP_POWER = -14
 SPEED = 5
 
 # --- VARIÁVEIS GLOBAIS ---
-platforms = [] # Lista de plataformas precisa ser uma variavel global
+platforms = [] 
 enemies = []
+hazards = [] 
+goals = []   
 
 
 # --- CLASSES ---
@@ -62,6 +64,10 @@ class Player(GameActor):
         # ATTACK 
         self.anim_attack_r = ["player_attack1", "player_attack2", "player_attack3"]
         self.anim_attack_l = ["player_attack_left1", "player_attack_left2", "player_attack_left3"]
+        
+        # HIT
+        self.anim_hit_r = ["player_hit1", "player_hit2", "player_hit3", "player_hit4"] 
+        self.anim_hit_l = ["player_hit_left1", "player_hit_left2", "player_hit_left3", "player_hit_left4"] 
 
         # --- VARIÁVEIS DE CONTROLE ---
         self.frame = 0
@@ -69,36 +75,75 @@ class Player(GameActor):
         self.facing_right = True
         self.is_moving = False
         self.is_attacking = False
+        self.is_hurt = False
+        self.has_dealt_damage = False
 
         # --- SISTEMA DE VIDA ---
         self.hp = 3.0 
         self.invulnerable_timer = 0 
         self.knockback = 0 # Empurrão quando toma dano
 
-      def update(self):
-        # Se estiver tomando empurrão (knockback), não controla o boneco
+    def update(self):
+        # Lógica de Empurrão (Knockback)
         if self.knockback > 0:
             self.x += self.knockback
-            # Diminui a força do empurrão gradualmente
             if self.knockback > 0: self.knockback -= 1
             elif self.knockback < 0: self.knockback += 1
+        # Se estiver machucado (animação de hit), não deixa mover
+        elif self.is_hurt:
+            pass 
         else:
             self.handle_input()
             
         self.apply_gravity()
-        self.animate()
+        self.check_damage() # Verifica se tomou dano
+        self.check_boundaries()
         
-        # Conta o tempo de invencibilidade
-        if self.invulnerable_timer > 0:
-            self.invulnerable_timer -= 1
+        # NOVA LÓGICA: DAR DANO
+        if self.is_attacking:
+            self.deal_damage() # Verifica se acertou alguém
             
-        # Verifica colisões
-        self.check_damage() 
+        self.animate() 
+        
     def attack(self):
-        # Só ataca se não estiver atacando
-        if not self.is_attacking:
+         if not self.is_attacking and not self.is_hurt:
             self.is_attacking = True
-            self.frame = 0 # Reinicia a animação
+            self.has_dealt_damage = False # Reseta para poder bater de novo
+            self.frame = 0
+            
+    def deal_damage(self):
+        # Só tenta dar dano se ainda não deu neste golpe
+        # E se a animação já passou do começo (frame 1 ou 2 é o ideal visualmente)
+        if not self.has_dealt_damage and int(self.frame) >= 1:
+            
+            # Cria uma Hitbox de Ataque na frente do jogador
+            attack_rect = self._rect.inflate(-20, -20) # Começa com o tamanho do player
+            
+            # Joga o retângulo para a frente
+            if self.facing_right:
+                attack_rect.x += 40 # Ajuste esse número para o alcance da espada
+            else:
+                attack_rect.x -= 40
+            
+            # Verifica se pegou em algum inimigo
+            for enemy in enemies:
+                # Usamos colliderect com o retângulo criado
+                if attack_rect.colliderect(enemy):
+                    print("TOMA ESSA!") # Debug
+                    
+                    # Tira vida do inimigo
+                    enemy.hp -= 1
+                    
+                    # Se zerou, remove da lista (mata)
+                    if enemy.hp <= 0:
+                        enemies.remove(enemy)
+                    
+                    # Empurra o inimigo (opcional)
+                    if self.x < enemy.x: enemy.x += 20
+                    else: enemy.x -= 20
+            
+            # Marca que já bateu para não dar dano infinito no mesmo ataque
+            self.has_dealt_damage = True
 
     def check_boundaries(self):
         # 1. Parede Esquerda
@@ -109,7 +154,6 @@ class Player(GameActor):
             self.left = offset # Trava ele no 0
             
         # 2. Parede Direita
-        # Se o lado direito do boneco passar da largura da tela
         if self.right > WIDTH -offset:
             self.right = WIDTH -offset # Trava ele no limite
             
@@ -118,6 +162,46 @@ class Player(GameActor):
             print("Caiu no buraco!")
             self.pos = (100, 500) # Reset
             self.velocity_y = 0
+
+    def check_damage(self):
+        # Se já estiver invencível (piscou recentemente), ignora dano
+        if self.invulnerable_timer > 0:
+            return
+
+        # Ajuste da Hitbox para ser justa
+        hitbox = self._rect.inflate(-80, -10)
+
+        # 1. DANO DE INIMIGOS (0.5 corações)
+        for enemy in enemies:
+            if hitbox.colliderect(enemy):
+                self.take_damage(0.5)
+                # Empurrão para trás (Knockback)
+                if enemy.x > self.x: self.knockback = -10 # Empurra pra esquerda
+                else: self.knockback = 10 # Empurra pra direita
+                return
+
+        # 2. DANO DE ESPINHOS (1.0 coração - ou Morte, você decide)
+        for spike in hazards:
+            if hitbox.colliderect(spike):
+                self.take_damage(1.0)
+                self.velocity_y = -10 # Pulinho de dor
+                return
+
+    def take_damage(self, amount):
+        self.hp -= amount
+        self.invulnerable_timer = 60
+        
+        # ATIVA ESTADO DE MACHUCADO
+        self.is_hurt = True
+        self.is_attacking = False # Cancela ataque se tomar dano
+        self.frame = 0 # Começa animação de hit
+        
+        print(f"Ai! Vida: {self.hp}")
+        
+        if self.hp <= 0:
+            print("GAME OVER")
+            self.pos = (100, 600)
+            self.hp = 3.0
 
 
     def handle_input(self):
@@ -172,18 +256,25 @@ class Player(GameActor):
         
         # --- MÁQUINA DE ESTADOS VISUAIS ---
         
-        # PRIORIDADE 1: ATAQUE
-        if self.is_attacking:
-            if self.facing_right:
-                current_list = self.anim_attack_r
-            else:
-                current_list = self.anim_attack_l
+         # PRIORIDADE 0: MACHUCADO (HIT) - Nova prioridade máxima
+        if self.is_hurt:
+            if self.facing_right: current_list = self.anim_hit_r
+            else: current_list = self.anim_hit_l
             
-            # Lógica especial do ataque: ele não entra em loop
+            # Quando a animação de hit acaba, volta ao normal
+            if self.frame >= len(current_list):
+                self.is_hurt = False
+                self.frame = 0
+        
+        # PRIORIDADE 1: ATAQUE
+        elif self.is_attacking:
+            # ... (o resto continua igual ao seu código anterior) ...
+            if self.facing_right: current_list = self.anim_attack_r
+            else: current_list = self.anim_attack_l
+            
             if self.frame >= len(current_list):
                 self.is_attacking = False 
                 self.frame = 0 
-                # Força update imediato
                 if self.facing_right: current_list = self.anim_idle_r
                 else: current_list = self.anim_idle_l
             
@@ -328,10 +419,11 @@ class Enemy(GameActor):
 
 
 # --- FUNÇÕES GLOBAIS ---
-
 def create_level1():
     platforms.clear()
     enemies.clear()
+    hazards.clear()
+    goals.clear()  
     
     # 1. Chão principal (Continua usando o bloco sólido padrão)
     for x in range(0, WIDTH, 32): 
