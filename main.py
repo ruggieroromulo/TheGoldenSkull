@@ -84,32 +84,40 @@ class Player(GameActor):
         self.knockback = 0 # Empurrão quando toma dano
 
     def update(self):
-        # Lógica de Empurrão (Knockback)
-        if self.knockback > 0:
+        # 1. Diminui o tempo de invencibilidade (A CORREÇÃO)
+        if self.invulnerable_timer > 0:
+            self.invulnerable_timer -= 1
+        
+        # 2. Lógica de Knockback
+        if self.knockback != 0:
             self.x += self.knockback
             if self.knockback > 0: self.knockback -= 1
             elif self.knockback < 0: self.knockback += 1
-        # Se estiver machucado (animação de hit), não deixa mover
+            
+        # 3. Se estiver machucado (travado na animação de hit), não move
         elif self.is_hurt:
             pass 
+            
+        # 4. Movimento normal
         else:
             self.handle_input()
             
         self.apply_gravity()
-        self.check_damage() # Verifica se tomou dano
+        self.check_damage() 
         self.check_boundaries()
         
-        # NOVA LÓGICA: DAR DANO
+        # 5. Ataque
         if self.is_attacking:
-            self.deal_damage() # Verifica se acertou alguém
+            self.deal_damage() 
             
-        self.animate() 
+        self.animate()
         
     def attack(self):
          if not self.is_attacking and not self.is_hurt:
             self.is_attacking = True
             self.has_dealt_damage = False # Reseta para poder bater de novo
             self.frame = 0
+            sounds.attack.play()
             
     def deal_damage(self):
         # Só tenta dar dano se ainda não deu neste golpe
@@ -174,7 +182,7 @@ class Player(GameActor):
         # 1. DANO DE INIMIGOS (0.5 corações)
         for enemy in enemies:
             if hitbox.colliderect(enemy):
-                self.take_damage(0.5)
+                self.take_damage(1)
                 # Empurrão para trás (Knockback)
                 if enemy.x > self.x: self.knockback = -10 # Empurra pra esquerda
                 else: self.knockback = 10 # Empurra pra direita
@@ -198,6 +206,8 @@ class Player(GameActor):
         
         print(f"Ai! Vida: {self.hp}")
         
+        sounds.hit.play()
+        
         if self.hp <= 0:
             print("GAME OVER")
             self.pos = (100, 600)
@@ -218,6 +228,10 @@ class Player(GameActor):
             self.is_moving = True
 
         if keyboard.W and self.on_ground:
+            
+            sounds.jump2.set_volume(0.1)
+            sounds.jump2.play()
+            
             self.velocity_y = JUMP_POWER
             self.on_ground = False
             
@@ -375,29 +389,34 @@ class Enemy(GameActor):
                 self.walk_count = -150
 
     def check_player_jump(self):
-        distance_x = abs(hero.x - self.x)
+        # 1. Distâncias separadas
+        distancia_x = abs(hero.x - self.x)
+        distancia_y = abs(hero.y - self.y)
 
-        # GATILHO (Sem Random)
-        if hero.velocity_y < 0 and distance_x < 200 and self.on_ground and self.reaction_timer == 0:
+        # 2. Seus limites personalizados
+        limite_x = 160 
+        limite_y = 30  
+
+        player_esta_perto = (distancia_x < limite_x) and (distancia_y < limite_y)
+
+        # GATILHO
+        if hero.velocity_y < 0 and player_esta_perto and self.on_ground and self.reaction_timer == 0:
             
-            # 1. TEMPO FIXO: 30 frames = 0.5 segundos exatos
-            self.reaction_timer = 12
+            # TEMPO FIXO: 15frames
+            self.reaction_timer = 15
             
-            # 2. PARA O INIMIGO
             self.current_speed = 0 
 
         # EXECUÇÃO
         if self.reaction_timer > 0:
             self.reaction_timer -= 1
             
-            # Quando chega no zero, PULA e volta a andar
             if self.reaction_timer == 0:
-                self.velocity_y = -12
+                self.velocity_y = -16 
                 self.on_ground = False
-                self.current_speed = 2 # Devolve a velocidade
+                self.current_speed = 2
 
     def animate(self):
-        # TRUQUE DO "IDLE FALSO"
         # Se a velocidade for 0 (está se preparando pra pular), não anima!
         if self.current_speed == 0:
             self.frame = 0 # Trava no primeiro quadro (pés no chão)
@@ -458,8 +477,11 @@ def create_level1():
         plat = Block((x, 200), "platform") 
         platforms.append(plat)
     
-    bug = Enemy((250, 500))
-    enemies.append(bug)
+    enemy1 = Enemy((250, 500))
+    enemies.append(enemy1)
+    
+    enemy2 = Enemy((250, 230))
+    enemies.append(enemy2)
 
 
 def on_key_up(key):
@@ -471,6 +493,7 @@ def on_mouse_down(pos, button):
     # Se o botão for o ESQUERDO
     if button == mouse.LEFT:
         hero.attack()
+        
 
 # --- INICIALIZAÇÃO ---
 
@@ -496,4 +519,12 @@ def update():
     # Atualiza todos os inimigos
     for enemy in enemies:
         enemy.update()
+        
+
+music.play("game") # Procura music.mp3 na pasta music
+music.set_volume(0.5) # 50% do volume
+
+print("Música não encontrada")
+        
+
 pgzrun.go()
