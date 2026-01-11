@@ -507,13 +507,23 @@ def on_mouse_down(pos, button):
             hero.hp = 3.0   # Enche a vida
             hero.pos = (100, 600) # Posição inicial
             game_state = "game" # MUDA O ESTADO
+            if sound_on:
+                music.play("game")   
+                music.set_volume(0.3)
             
         # Verifica colisão com o botão SOM (Use ELIF)
         elif btn_sound.collidepoint(pos):
             print("Clicou no Som")
             sound_on = not sound_on
-            if sound_on: 
-                music.set_volume(0.3)
+            
+            if sound_on:
+                print("Som LIGADO")
+                try: music.set_volume(0.3) # Volume 30%
+                except: pass
+            else:
+                print("Som DESLIGADO")
+                try: music.set_volume(0)   # Volume 0 (Mudo)
+                except: pass
 
             
         # Verifica colisão com o botão SAIR (Use ELIF)
@@ -596,11 +606,12 @@ def update():
         for enemy in enemies: enemy.update()
         
 if sound_on:
-    try: 
-        music.play("game")   # Toca a música
-        music.set_volume(0.3) # Define volume inicial (30%)
-    except:
-        print("Erro: Música não encontrada")
+        music.play("menu")   
+        music.set_volume(0.3) 
+
+      # Define volume inicial (30%)
+    
+        
 
         
 
