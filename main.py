@@ -563,8 +563,8 @@ def draw():
     screen.fill((135, 206, 235)) # Céu
     
     if game_state == "menu":
-        # Desenha o título e os botões
-        screen.draw.text("THE GOLDEN SKULL", center=(WIDTH/2, 150), fontsize=60, color="gold", shadow=(2,2))
+        
+        #screen.draw.image("THE GOLDEN SKULL", center=(WIDTH/2, 150))
         
         btn_start.draw()
         btn_sound.draw()
@@ -581,10 +581,13 @@ def draw():
         draw_hud()
 
     elif game_state == "game_over":
+        screen.fill((0, 0, 0))
+        #deixar a msc mais lenta
         screen.draw.text("GAME OVER", center=(WIDTH/2, HEIGHT/2), fontsize=80, color="red")
         screen.draw.text("Press ENTER to try again", center=(WIDTH/2, HEIGHT/2 + 60), fontsize=30)
 
     elif game_state == "win":
+        #trocar a trilha sonora pra vitoriosa
         screen.draw.text("YOU WIN!", center=(WIDTH/2, HEIGHT/2), fontsize=80, color="gold")
         screen.draw.text("Press ENTER to back on menu", center=(WIDTH/2, HEIGHT/2 + 60), fontsize=30)
 
@@ -593,9 +596,12 @@ def update():
         hero.update()
         for enemy in enemies: enemy.update()
         
-    if sound_on:
-        music.play("game")
-        music.set_volume(0.5) # 50% of volum
+if sound_on:
+    try:
+        music.play("game")   # Toca a música
+        music.set_volume(0.3) # Define volume inicial (30%)
+    except:
+        print("Erro: Música não encontrada")
 
         
 
