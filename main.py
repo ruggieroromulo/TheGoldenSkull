@@ -14,14 +14,20 @@ JUMP_POWER = -14
 SPEED = 5
 
 # --- VARIÁVEIS GLOBAIS ---
+game_state = "menu"
+sound_on = True 
 platforms = [] 
 enemies = []
 hazards = [] 
 goals = []   
 
 
-# --- CLASSES ---
+btn_start = Actor("btn_start", (WIDTH/2, 300))
+btn_sound = Actor("btn_music", (WIDTH/2, 500))
+btn_exit  = Actor("btn_exit",  (WIDTH/2, 700))
 
+
+# --- CLASSES ---
 class GameActor(Actor):
     def __init__(self, image_name, pos):
         super().__init__(image_name, pos)
@@ -37,8 +43,8 @@ class Player(GameActor):
     def __init__(self, pos):
         super().__init__("player_idle_word1", pos) 
         
-        # --- 1. LISTAS DE ANIMAÇÃO ---
         
+        # --- 1. LISTAS DE ANIMAÇÃO ---
         # IDLE 
         self.anim_idle_r = [
             "player_idle_word1", "player_idle_word2", "player_idle_word3", "player_idle_word4", "player_idle_word5"
@@ -84,17 +90,17 @@ class Player(GameActor):
         self.knockback = 0 # Empurrão quando toma dano
 
     def update(self):
-        # 1. Diminui o tempo de invencibilidade (A CORREÇÃO)
+        #1. Invencibilidade
         if self.invulnerable_timer > 0:
             self.invulnerable_timer -= 1
         
-        # 2. Lógica de Knockback
+        #2. Knockback
         if self.knockback != 0:
             self.x += self.knockback
             if self.knockback > 0: self.knockback -= 1
             elif self.knockback < 0: self.knockback += 1
             
-        # 3. Se estiver machucado (travado na animação de hit), não move
+        # 3. Se estiver machucado, não move
         elif self.is_hurt:
             pass 
             
@@ -117,11 +123,12 @@ class Player(GameActor):
             self.is_attacking = True
             self.has_dealt_damage = False # Reseta para poder bater de novo
             self.frame = 0
-            sounds.attack.play()
+            if sound_on:
+                sounds.attack.play()
             
     def deal_damage(self):
         # Só tenta dar dano se ainda não deu neste golpe
-        # E se a animação já passou do começo (frame 1 ou 2 é o ideal visualmente)
+        # E se a animação já passou do começo
         if not self.has_dealt_damage and int(self.frame) >= 1:
             
             # Cria uma Hitbox de Ataque na frente do jogador
@@ -135,14 +142,13 @@ class Player(GameActor):
             
             # Verifica se pegou em algum inimigo
             for enemy in enemies:
-                # Usamos colliderect com o retângulo criado
                 if attack_rect.colliderect(enemy):
                     print("TOMA ESSA!") # Debug
                     
                     # Tira vida do inimigo
                     enemy.hp -= 1
                     
-                    # Se zerou, remove da lista (mata)
+                    # Se zerou, tira da lista(elimina)
                     if enemy.hp <= 0:
                         enemies.remove(enemy)
                     
@@ -156,7 +162,8 @@ class Player(GameActor):
     def check_boundaries(self):
         # 1. Parede Esquerda
         # Se o lado esquerdo do boneco for menor que 0
-        offset = -23
+        
+        offset = -23 #Corrigindo a hitbox que o phzero setou para meu asset
 
         if self.left < offset:
             self.left = offset # Trava ele no 0
@@ -165,30 +172,26 @@ class Player(GameActor):
         if self.right > WIDTH -offset:
             self.right = WIDTH -offset # Trava ele no limite
             
-        # 3. Buraco (Morte) - Mantemos o que já existia
-        if self.y > HEIGHT + 100:
-            print("Caiu no buraco!")
-            self.pos = (100, 500) # Reset
-            self.velocity_y = 0
+        
 
     def check_damage(self):
-        # Se já estiver invencível (piscou recentemente), ignora dano
+        # Se já estiver invencível, ignora dano
         if self.invulnerable_timer > 0:
             return
 
         # Ajuste da Hitbox para ser justa
         hitbox = self._rect.inflate(-80, -10)
 
-        # 1. DANO DE INIMIGOS (0.5 corações)
+        # 1. DANO DE INIMIGOS (1 coracao)
         for enemy in enemies:
             if hitbox.colliderect(enemy):
                 self.take_damage(1)
-                # Empurrão para trás (Knockback)
-                if enemy.x > self.x: self.knockback = -10 # Empurra pra esquerda
-                else: self.knockback = 10 # Empurra pra direita
+                # Empurrão para tras 
+                if enemy.x > self.x: self.knockback = -10 # Empurra esquerda
+                else: self.knockback = 10 # Empurra direita
                 return
 
-        # 2. DANO DE ESPINHOS (1.0 coração - ou Morte, você decide)
+        # 2. DANO DE ESPINHOS (1.0 coração - ou Morte)
         for spike in hazards:
             if hitbox.colliderect(spike):
                 self.take_damage(1.0)
@@ -199,19 +202,21 @@ class Player(GameActor):
         self.hp -= amount
         self.invulnerable_timer = 60
         
-        # ATIVA ESTADO DE MACHUCADO
-        self.is_hurt = True
-        self.is_attacking = False # Cancela ataque se tomar dano
-        self.frame = 0 # Começa animação de hit
-        
+        # Efeitos visuais/sonoros
         print(f"Ai! Vida: {self.hp}")
+        self.is_hurt = True
+        self.is_attacking = False
+        self.frame = 0
         
-        sounds.hit.play()
+        if sound_on:
+            try: sounds.hit.play()
+            except: pass
         
+        # AQUI ESTÁ A CORREÇÃO:
         if self.hp <= 0:
-            print("GAME OVER")
-            self.pos = (100, 600)
-            self.hp = 3.0
+            print("MORREUUUUUUUUU")
+            global game_state
+            game_state = "game_over"
 
 
     def handle_input(self):
@@ -229,8 +234,9 @@ class Player(GameActor):
 
         if keyboard.W and self.on_ground:
             
-            sounds.jump2.set_volume(0.1)
-            sounds.jump2.play()
+            if sound_on:
+                sounds.jump2.set_volume(0.1)
+                sounds.jump2.play()
             
             self.velocity_y = JUMP_POWER
             self.on_ground = False
@@ -490,41 +496,107 @@ def on_key_up(key):
         hero.velocity_y = hero.velocity_y * 0.3 
 
 def on_mouse_down(pos, button):
-    # Se o botão for o ESQUERDO
-    if button == mouse.LEFT:
-        hero.attack()
+    global game_state, sound_on
+    
+    # 1. Se estiver no MENU
+    if game_state == "menu":
+        # Verifica colisão com o botão INICIAR
+        if btn_start.collidepoint(pos):
+            print("Clicou em Iniciar")
+            create_level1() # Reseta o mapa
+            hero.hp = 3.0   # Enche a vida
+            hero.pos = (100, 600) # Posição inicial
+            game_state = "game" # MUDA O ESTADO
+            
+        # Verifica colisão com o botão SOM (Use ELIF)
+        elif btn_sound.collidepoint(pos):
+            print("Clicou no Som")
+            sound_on = not sound_on
+            if sound_on: 
+                music.set_volume(0.3)
+
+            
+        # Verifica colisão com o botão SAIR (Use ELIF)
+        elif btn_exit.collidepoint(pos):
+            print("Saindo...")
+            exit()
+
+    # 2. Se estiver no JOGO
+    elif game_state == "game":
+        if button == mouse.LEFT:
+            hero.attack()
+            
+
+def on_key_down(key):
+    global game_state
+    
+    if game_state == "game_over" and key == keys.RETURN:
+        create_level1()
+        hero.hp = 3.0
+        hero.pos = (100, 600)
+        game_state = "game"
+        
+    elif game_state == "win" and key == keys.RETURN:
+        game_state = "menu"
         
 
 # --- INICIALIZAÇÃO ---
-
 create_level1() # Cria o chão
 hero = Player((100, 600)) # Começa em cima do chão
 
 
 # --- LOOP PRINCIPAL ---
+def draw_hud():
+    for i in range(3): # 0, 1, 2
+        # Posição na tela (canto superior esquerdo)
+        x = 20 + (i * 100) 
+        y = 20
+        
+        
+        if hero.hp >= i + 1:
+            screen.blit("small_heart", (x, y)) #um coracao
+        elif hero.hp > i:
+            screen.blit("small_heart", (x, y)) #dois
+            screen.blit("small_heart", (x, y)) #tres
 
 def draw():
-    screen.fill((135, 206, 235))
+    screen.fill((135, 206, 235)) # Céu
     
-    for plat in platforms:
-        plat.draw()
+    if game_state == "menu":
+        # Desenha o título e os botões
+        screen.draw.text("THE GOLDEN SKULL", center=(WIDTH/2, 150), fontsize=60, color="gold", shadow=(2,2))
         
-    for enemy in enemies:
-        enemy.draw() # Desenha os inimigos
+        btn_start.draw()
+        btn_sound.draw()
+        btn_exit.draw()
         
-    hero.draw()
+
+    elif game_state == "game":
+        # O jogo normal
+        for plat in platforms: plat.draw()
+        for spike in hazards: spike.draw()
+        for skull in goals: skull.draw()
+        for enemy in enemies: enemy.draw()
+        hero.draw()
+        draw_hud()
+
+    elif game_state == "game_over":
+        screen.draw.text("GAME OVER", center=(WIDTH/2, HEIGHT/2), fontsize=80, color="red")
+        screen.draw.text("Press ENTER to try again", center=(WIDTH/2, HEIGHT/2 + 60), fontsize=30)
+
+    elif game_state == "win":
+        screen.draw.text("YOU WIN!", center=(WIDTH/2, HEIGHT/2), fontsize=80, color="gold")
+        screen.draw.text("Press ENTER to back on menu", center=(WIDTH/2, HEIGHT/2 + 60), fontsize=30)
 
 def update():
-    hero.update()
-    # Atualiza todos os inimigos
-    for enemy in enemies:
-        enemy.update()
+    if game_state == "game":
+        hero.update()
+        for enemy in enemies: enemy.update()
         
+    if sound_on:
+        music.play("game")
+        music.set_volume(0.5) # 50% of volum
 
-music.play("game") # Procura music.mp3 na pasta music
-music.set_volume(0.5) # 50% do volume
-
-print("Música não encontrada")
         
 
 pgzrun.go()
