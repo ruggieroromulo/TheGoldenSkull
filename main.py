@@ -180,7 +180,7 @@ class Player(GameActor):
             return
 
         # Ajuste da Hitbox para ser justa
-        hitbox = self._rect.inflate(-80, -10)
+        hitbox = self._rect.inflate(-55, -10)
 
         # 1. DANO DE INIMIGOS (1 coracao)
         for enemy in enemies:
@@ -196,6 +196,18 @@ class Player(GameActor):
             if hitbox.colliderect(spike):
                 self.take_damage(1.0)
                 self.velocity_y = -10 # Pulinho de dor
+                return
+        
+        # 3.     
+        for skull in goals:
+            if hitbox.colliderect(skull):
+                
+                if sound_on: 
+                    music.set_volume(0.0)
+                    sounds.win.play() 
+                
+                global game_state
+                game_state = "win" 
                 return
 
     def take_damage(self, amount):
@@ -399,9 +411,9 @@ class Enemy(GameActor):
         distancia_x = abs(hero.x - self.x)
         distancia_y = abs(hero.y - self.y)
 
-        # 2. Seus limites personalizados
-        limite_x = 160 
-        limite_y = 30  
+        # 2. Sensores do enemy
+        limite_x = 170 
+        limite_y = 60  
 
         player_esta_perto = (distancia_x < limite_x) and (distancia_y < limite_y)
 
@@ -409,7 +421,7 @@ class Enemy(GameActor):
         if hero.velocity_y < 0 and player_esta_perto and self.on_ground and self.reaction_timer == 0:
             
             # TEMPO FIXO: 15frames
-            self.reaction_timer = 15
+            self.reaction_timer = 14
             
             self.current_speed = 0 
 
@@ -418,7 +430,7 @@ class Enemy(GameActor):
             self.reaction_timer -= 1
             
             if self.reaction_timer == 0:
-                self.velocity_y = -16 
+                self.velocity_y = -17
                 self.on_ground = False
                 self.current_speed = 2
 
@@ -441,6 +453,11 @@ class Enemy(GameActor):
             self.frame = 0
             
         self.image = current_list[int(self.frame)]
+        
+class Goal(Actor):
+    def __init__(self, pos):
+        # Garanta que o nome da imagem aqui bate com o arquivo
+        super().__init__("skulll1", pos)
 
 
 # --- FUNÇÕES GLOBAIS ---
@@ -455,7 +472,7 @@ def create_level1():
         plat = Block((x, 790), "block") # Passamos "block" explicitamente
         platforms.append(plat)
         
-    for x in range(600, 1100, 33):
+    for x in range(600, 1170, 33):
         plat = Block((x, 630), "platform") 
         platforms.append(plat)
 
@@ -488,6 +505,15 @@ def create_level1():
     
     enemy2 = Enemy((250, 230))
     enemies.append(enemy2)
+    
+    enemy3 = Enemy((750, 630))
+    enemies.append(enemy3)
+    
+    enemy4 = Enemy((990, 630))
+    enemies.append(enemy4)
+    
+    skull = Goal((1050, 150)) 
+    goals.append(skull)
 
 
 def on_key_up(key):
@@ -505,7 +531,7 @@ def on_mouse_down(pos, button):
             print("Clicou em Iniciar")
             create_level1() # Reseta o mapa
             hero.hp = 3.0   # Enche a vida
-            hero.pos = (100, 600) # Posição inicial
+            hero.pos = (70, 745) # Posição inicial
             game_state = "game" # MUDA O ESTADO
             if sound_on:
                 music.play("game")   
@@ -540,19 +566,23 @@ def on_mouse_down(pos, button):
 def on_key_down(key):
     global game_state
     
-    if game_state == "game_over" and key == keys.RETURN:
+    if game_state == "game_over" and key == keys.SPACE:
         create_level1()
         hero.hp = 3.0
-        hero.pos = (100, 600)
+        hero.pos = (70, 745)
         game_state = "game"
         
-    elif game_state == "win" and key == keys.RETURN:
+    elif game_state == "win" and key == keys.SPACE:
         game_state = "menu"
+        
+        if sound_on:
+            music.play("menu")
+            music.set_volume(0.3)
         
 
 # --- INICIALIZAÇÃO ---
 create_level1() # Cria o chão
-hero = Player((100, 600)) # Começa em cima do chão
+hero = Player((70, 745)) # Começa em cima do chão
 
 
 # --- LOOP PRINCIPAL ---
@@ -570,7 +600,7 @@ def draw_hud():
             screen.blit("small_heart", (x, y)) #tres
 
 def draw():
-    screen.fill((135, 206, 235)) # Céu
+    screen.blit("level1_bg", (0, 0))  # Céu
     
     if game_state == "menu":
         
@@ -581,7 +611,7 @@ def draw():
         
 
     elif game_state == "game":
-        # O jogo normal
+        
         for plat in platforms: plat.draw()
         for spike in hazards: spike.draw()
         for skull in goals: skull.draw()
@@ -593,13 +623,20 @@ def draw():
         screen.fill((0, 0, 0))
         #deixar a msc mais lenta
         screen.draw.text("GAME OVER", center=(WIDTH/2, HEIGHT/2), fontsize=80, color="red")
-        screen.draw.text("Press ENTER to try again", center=(WIDTH/2, HEIGHT/2 + 60), fontsize=30)
+        screen.draw.text("Press SPACE to try again", center=(WIDTH/2, HEIGHT/2 + 60), fontsize=30)
 
     elif game_state == "win":
-        #trocar a trilha sonora pra vitoriosa
-        screen.draw.text("YOU WIN!", center=(WIDTH/2, HEIGHT/2), fontsize=80, color="gold")
-        screen.draw.text("Press ENTER to back on menu", center=(WIDTH/2, HEIGHT/2 + 60), fontsize=30)
-
+        
+        # Título
+        screen.draw.text("VITÓRIA!", center=(WIDTH/2, HEIGHT/2 - 50), fontsize=100, color="gold", )
+        
+        # Desenha a caveira grande no meio
+        screen.blit("win_bg2", (0, 0)) 
+        
+        # Instrução
+        screen.draw.text("You recovered the Golden Skull!", center=(WIDTH/2, 30), fontsize=30, color="black")
+        screen.draw.text("Press SPACE to return to the Menu.", center=(WIDTH/2, 50), fontsize=23, color="black")
+        
 def update():
     if game_state == "game":
         hero.update()
@@ -611,8 +648,6 @@ if sound_on:
 
       # Define volume inicial (30%)
     
-        
-
-        
+           
 
 pgzrun.go()
