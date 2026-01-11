@@ -22,9 +22,9 @@ hazards = []
 goals = []   
 
 
-btn_start = Actor("btn_start", (WIDTH/2, 300))
-btn_sound = Actor("btn_music", (WIDTH/2, 500))
-btn_exit  = Actor("btn_exit",  (WIDTH/2, 700))
+btn_sound = Actor("btn_music", (1130, 90))
+btn_start = Actor("btn_start", (180, 520))
+btn_exit  = Actor("btn_exit",  (180, 640))
 
 
 # --- CLASSES ---
@@ -564,8 +564,7 @@ def draw():
     
     if game_state == "menu":
         
-        #screen.draw.image("THE GOLDEN SKULL", center=(WIDTH/2, 150))
-        
+        screen.blit("menu_bg", (0, 0)) 
         btn_start.draw()
         btn_sound.draw()
         btn_exit.draw()
@@ -597,7 +596,7 @@ def update():
         for enemy in enemies: enemy.update()
         
 if sound_on:
-    try:
+    try: 
         music.play("game")   # Toca a música
         music.set_volume(0.3) # Define volume inicial (30%)
     except:
